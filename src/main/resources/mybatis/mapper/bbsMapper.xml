@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sp.app.mapper.BoardMapper">
+	<!--
+	  * ${} 는 테이블명 이나 컬럼명이 동적일때 테이블명 또는 컬럼명에 사용하고,
+	        값부분은 반드시 #{} 로 사용하며,
+        #{} 는 ? 로 치환되고 쿼리는 PreparedStatement 객체로 실행한다.
+    -->
+	<!--
+       * INSTR() 함수 대신 LIKE 를 사용하는 경우
+          subject LIKE '%' || #{kwd} || '%'
+       * CLOB인 경우 검색(LIKE 사용하지 말것)
+          DBMS_LOB.INSTR(content, #{kwd}) &gt; 0 
+       * 에디터를 사용하므로 모든 태그 제거후 검색
+         REGEXP_REPLACE(content, '<[^>]+>', '')
+	-->	
+	<sql id="where-list">
+		<choose>
+			<when test="schType == 'all' ">
+				<![CDATA[
+					(
+						INSTR(subject, #{kwd}) > 0
+						OR DBMS_LOB.INSTR(REGEXP_REPLACE(content, '<[^>]+>', ''), #{kwd}) > 0
+					)
+				]]>
+			</when>
+			<when test="schType == 'reg_date' ">
+				( INSTR(TO_CHAR(reg_date, 'YYYYMMDD'), #{kwd}) &gt; 0
+					OR TO_CHAR(reg_date, 'YYYY-MM-DD') = #{kwd} )
+			</when>
+			<when test="schType == 'content'">
+				<![CDATA[
+					DBMS_LOB.INSTR(REGEXP_REPLACE(content, '<[^>]+>', ''), #{kwd}) > 0
+				]]>
+			</when>
+			<otherwise>
+			    INSTR(${schType}, #{kwd}) &gt; 0
+			</otherwise>
+		</choose>
+	</sql>
+
+	<!-- 글개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM bbs b
+		JOIN member2 m ON b.member_id = m.member_id
+		<where>
+			<if test="kwd != null and kwd != '' ">
+				<include refid="where-list"/>
+			</if>
+			AND block = 0
+		</where>   
+	</select>
+
+	<!-- 글리스트 -->
+	<select id="listBoard" parameterType="map" resultType="com.sp.app.domain.entity.Board">
+		SELECT b.num, b.member_id, name, subject, reg_date,
+			   hitCount, saveFilename,
+			   NVL(replyCount, 0) replyCount
+		FROM bbs b
+		JOIN member2 m ON b.member_id = m.member_id
+		LEFT OUTER JOIN (
+			SELECT num, COUNT(*) replyCount
+			FROM bbsReply
+			WHERE parentNum = 0 AND showReply = 1 AND block = 0
+			GROUP BY num
+		) c ON b.num = c.num		
+		<where>
+			<if test="kwd != null and kwd != ''">
+				<include refid="where-list"/>
+			</if>
+			AND block = 0
+		</where>
+		ORDER BY num DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+
+	<!-- 글보기 -->
+	<select id="findById" parameterType="Long" resultType="com.sp.app.domain.entity.Board">
+		SELECT b.num, b.member_id, name, subject, content,
+			   hitCount, b.reg_date,  saveFilename, originalFilename, block,
+			   NVL(boardLikeCount, 0) boardLikeCount
+		FROM bbs b
+		JOIN member2 m ON b.member_id = m.member_id
+		LEFT OUTER JOIN (
+			SELECT num, COUNT(*) boardLikeCount
+			FROM bbsLike
+			GROUP BY num
+		) bc ON b.num = bc.num		
+		WHERE b.num = #{num} AND block = 0
+	</select>
+	
+	<!-- 이전글 -->
+	<select id="findByPrev" parameterType="map" resultType="com.sp.app.domain.entity.Board">
+		SELECT num, subject
+		FROM bbs b
+		JOIN member2 m ON b.member_id = m.member_id
+		<where>
+			<if test="kwd != null and kwd != '' ">
+				<include refid="where-list"/>
+			</if>
+			AND (num &gt; #{num})
+			AND block = 0
+		</where>
+		ORDER BY num ASC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<!-- 다음글 -->
+	<select id="findByNext" parameterType="map" resultType="com.sp.app.domain.entity.Board">
+		SELECT num, subject
+		FROM bbs b
+		JOIN member2 m ON b.member_id = m.member_id
+		<where>
+			<if test="kwd != null and kwd != '' ">
+				<include refid="where-list"/>
+			</if>
+			AND (num &lt; #{num})
+			AND block = 0
+		</where>
+		ORDER BY num DESC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<!-- 게시 글 좋아요 추가 -->
+	<insert id="insertBoardLike" parameterType="map">
+		INSERT INTO bbsLike(num, member_id) VALUES (#{num}, #{member_id})
+	</insert>
+
+	<!-- 게시 글 좋아요 삭제 -->
+	<delete id="deleteBoardLike" parameterType="map">
+		DELETE FROM bbsLike
+		WHERE num = #{num} AND member_id = #{member_id}
+	</delete>
+      
+	<!-- 게시글 좋아요 개수 -->
+	<select id="boardLikeCount" parameterType="Long" resultType="Integer">
+		SELECT COUNT(*)
+		FROM bbsLike
+		WHERE num = #{num}
+	</select>
+
+	<!-- 게시글 좋아요 여부 -->
+	<select id="hasUserBoardLiked" parameterType="map" resultType="com.sp.app.domain.entity.Board">
+		SELECT num, member_id
+		FROM bbsLike
+		WHERE num = #{num} AND member_id = #{member_id}
+	</select>
+
+</mapper>

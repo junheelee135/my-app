@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sp.app.mapper.MemberMapper">
+	<select id="loginMember" parameterType="map" resultType="com.sp.app.domain.dto.MemberDto">
+		SELECT m1.member_id, m1.login_id, password, sns_provider, sns_id, 
+			name, email, userLevel, 
+			created_at, update_at, last_login, enabled,
+			profile_photo
+		FROM member1 m1
+		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id 
+		WHERE m1.login_id = #{login_id} AND password = #{password}  AND enabled != 0
+	</select>
+
+	<select id="loginSnsMember" parameterType="map" resultType="com.sp.app.domain.dto.MemberDto">
+		SELECT m1.member_id, m1.login_id, password, sns_provider, sns_id, 
+			name, email, userLevel, 
+			created_at, update_at, last_login, enabled,
+			profile_photo
+		FROM member1 m1
+		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id 
+		WHERE sns_provider = #{sns_provider} AND sns_id = #{sns_id}
+	</select>
+	
+	<update id="updateLastLogin" parameterType="Long">
+		UPDATE member1 SET last_login = SYSDATE, failure_cnt = 0
+		WHERE member_id = #{member_id}
+	</update>
+
+	<select id="memberSeq" resultType="Long">
+		SELECT member_seq.NEXTVAL
+		FROM dual
+	</select>
+	
+    <insert id="insertMember1" parameterType="com.sp.app.domain.dto.MemberDto">
+		INSERT INTO member1(member_id, login_id, password, sns_provider, sns_id,  
+			userLevel, enabled, created_at, update_at, failure_cnt)
+		VALUES (#{member_id}, #{login_id, jdbcType=VARCHAR}, #{password, jdbcType=VARCHAR}, 
+			#{sns_provider, jdbcType=VARCHAR}, #{sns_id, jdbcType=VARCHAR}, 
+			1, 1, SYSDATE, SYSDATE, 0) 
+    </insert>
+
+    <insert id="insertMember2" parameterType="com.sp.app.domain.dto.MemberDto">
+		INSERT INTO member2(member_id, name, birth, email, receive_email, tel, 
+			profile_photo, zip, addr1, addr2, ipAddr)
+		VALUES (#{member_id}, #{name}, TO_DATE(#{birth}, 'YYYY-MM-DD'), 
+			#{email}, #{receive_email}, #{tel}, 
+			#{profile_photo, jdbcType=VARCHAR}, #{zip, jdbcType=VARCHAR},
+			#{addr1, jdbcType=VARCHAR}, #{addr2, jdbcType=VARCHAR},
+			#{ipAddr})
+    </insert>
+	
+    <update id="insertMember12" parameterType="com.sp.app.domain.dto.MemberDto">
+		INSERT ALL
+		INTO member1(member_id, login_id, password, sns_provider, sns_id, 
+			userLevel, enabled, created_at, update_at, failure_cnt)
+		VALUES (member_seq.NEXTVAL, #{login_id, jdbcType=VARCHAR}, #{password, jdbcType=VARCHAR}, 
+			#{sns_provider, jdbcType=VARCHAR}, #{sns_id, jdbcType=VARCHAR}, 
+			1, 1, SYSDATE, SYSDATE, 0)
+		INTO member2(member_id, name, birth, email, receive_email, tel, 
+			profile_photo, zip, addr1, addr2, ipAddr)
+		VALUES (member_seq.CURRVAL, #{name}, TO_DATE(#{birth}, 'YYYY-MM-DD'), 
+			#{email}, #{receive_email}, #{tel}, 
+			#{profile_photo, jdbcType=VARCHAR}, #{zip, jdbcType=VARCHAR},
+			#{addr1, jdbcType=VARCHAR}, #{addr2, jdbcType=VARCHAR},
+			#{ipAddr})
+		SELECT * FROM dual
+    </update>
+
+    <update id="insertSnsMember" parameterType="com.sp.app.domain.dto.MemberDto">
+		INSERT ALL
+		INTO member1(member_id, sns_provider, sns_id, 
+			userLevel, enabled, created_at, update_at)
+		VALUES (#{member_id}, #{sns_provider}, #{sns_id}, 
+			1, 1, SYSDATE, SYSDATE)
+		INTO member2(member_id, name, email, ipAddr)
+		VALUES (#{member_id}, #{name}, #{email, jdbcType=VARCHAR}, 
+			#{ipAddr, jdbcType=VARCHAR})
+		SELECT * FROM dual
+    </update>
+
+	<select id="findById" parameterType="Long" resultType="com.sp.app.domain.dto.MemberDto">
+		SELECT m1.member_id, m1.login_id, password, sns_provider, sns_id, email,
+			userLevel, enabled, created_at, update_at, last_login,
+			name, TO_CHAR(birth, 'YYYY-MM-DD') birth, email, tel, 
+			profile_photo, zip, addr1, addr2, receive_email
+		FROM member1 m1
+		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id
+		WHERE m1.member_id = #{member_id}
+	</select>
+
+	<select id="findByLoginId" parameterType="String" resultType="com.sp.app.domain.dto.MemberDto">
+		SELECT m1.member_id, m1.login_id, password, sns_provider, sns_id, email,
+			userLevel, enabled, created_at, update_at, last_login,
+			name, TO_CHAR(birth, 'YYYY-MM-DD') birth, email, tel, 
+			profile_photo, zip, addr1, addr2, receive_email
+		FROM member1 m1
+		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id
+		WHERE m1.login_id = #{login_id}
+	</select>
+
+    <!-- 회원정보 수정  --> 
+    <update id="updateMemberEnabled" parameterType="map">
+		UPDATE member1 SET enabled = #{enabled}
+		WHERE member_id = #{member_id}
+    </update>
+    
+    <update id="updateMemberLevel" parameterType="map">
+		UPDATE member1 SET userLevel = #{userLevel}
+		WHERE member_id = #{member_id}
+    </update>
+    
+    <update id="updateMember1" parameterType="com.sp.app.domain.dto.MemberDto">
+		UPDATE member1 SET login_id = #{login_id, jdbcType=VARCHAR}, 
+			sns_provider = #{sns_provider, jdbcType=VARCHAR}, sns_id = #{sns_id, jdbcType=VARCHAR}, 
+			password = #{password}, update_at = SYSDATE
+		WHERE member_id = #{member_id}
+    </update>
+	
+    <update id="updateMember2" parameterType="com.sp.app.domain.dto.MemberDto">
+		UPDATE member2 SET email = #{email}, 
+			birth = TO_DATE(#{birth}, 'YYYY-MM-DD'), 
+			tel = #{tel, jdbcType=VARCHAR}, 
+			profile_photo = #{profile_photo, jdbcType=VARCHAR}, 
+			zip = #{zip, jdbcType=VARCHAR},
+			addr1 = #{addr1, jdbcType=VARCHAR}, addr2 = #{addr2, jdbcType=VARCHAR},
+			receive_email = #{receive_email}
+		WHERE member_id = #{member_id}
+    </update>
+
+    <update id="deleteProfilePhoto" parameterType="map">
+		UPDATE member2 SET profile_photo = ''
+		WHERE member_id = #{member_id}
+    </update>
+
+    <!-- member 테이블 정보 삭제  -->    
+    <delete id="deleteMember1" parameterType="map">
+		DELETE FROM member1
+		WHERE member_id = #{member_id}
+    </delete>
+    
+    <delete id="deleteMember2" parameterType="map">
+		DELETE FROM member2
+		WHERE member_id = #{member_id}
+    </delete>
+
+    <select id="listFindMember" parameterType="map" resultType="com.sp.app.domain.dto.MemberDto">
+		SELECT m1.member_id, NVL(login_id, sns_id) login_id, name
+		FROM member1 m1
+		JOIN member2 m2 ON m1.member_id = m2.member_id
+		<where>
+			m1.member_id != #{member_id}
+			AND
+			<if test="kwd != null and kwd != '' ">
+				<choose>
+					<when test="schType == 'login_id'">
+						( NSTR(m1.login_id, #{kwd}) &gt;= 1 OR INSTR(m1.sns_id, #{kwd}) &gt;= 1 )
+					</when>
+					<otherwise>
+						INSTR(${schType}, #{kwd}) &gt;= 1
+					</otherwise>
+				</choose>
+			</if>
+		</where>
+    </select>
+
+</mapper>

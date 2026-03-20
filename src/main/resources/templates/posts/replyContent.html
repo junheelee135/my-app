@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+	<th:block th:fragment="replyContent">
+		<!-- 댓글  -->
+		<div class="reply-form">
+			<div class="form-header">
+				<span class="small-title">댓글</span><span> - 타인을 비방하거나 개인정보를 유출하는 글의 게시를 삼가해 주세요.</span>
+			</div>
+			
+			<div class="mb-2">
+				<textarea class="form-control" name="content"></textarea>
+			</div>
+			<div class="text-end">
+				<button type="button" class="btn-default btn-md btnSendReply">댓글 등록</button>
+			</div>
+		</div>
+		
+		<div id="listReply">
+			<div class="reply-info">
+				<span class="reply-count"></span>
+				<span class="reply-page"></span>
+			</div>
+			<div class="list-content" data-pageNo="0" data-totalPage="0"></div>
+			<div class="list-footer">
+				<div class="page-navigation"></div>
+			</div>
+		</div>
+		
+		<script type="text/javascript" th:src="@{/dist/js/util-async.js}"></script>
+		<script type="text/javascript" th:src="@{/dist/posts/renderReply.js}"></script>
+		<script type="text/javascript" th:src="@{/dist/posts/replyContent.js}"></script>
+	</th:block>
+</html>

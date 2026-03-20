@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sp.app.mapper.ReplyMapper">
+	<insert id="insertReply" parameterType="com.sp.app.domain.dto.ReplyDto">
+		INSERT INTO ${target}(replyNum, num, member_id, content, parentNum, showReply, reg_date, block)
+		VALUES (${target}_seq.NEXTVAL, #{num}, #{member_id}, #{content}, #{parentNum}, 1, SYSDATE, 0)
+	</insert>
+
+	<select id="replyCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM ${target}
+		WHERE num = #{num} AND parentNum = 0 AND block = 0
+		<if test="userLevel lt 51">
+			AND ( showReply = 1 OR member_id = #{member_id} )
+		</if>
+	</select>
+
+	<!-- 댓글리스트 -->
+	<select id="listReply" parameterType="map" resultType="com.sp.app.domain.dto.ReplyDto">
+		SELECT r.replyNum, r.member_id, name, num, content, r.reg_date, 
+				showReply, profile_photo,  
+				NVL(answerCount, 0) answerCount,
+				NVL(likeCount, 0) likeCount,
+				NVL(disLikeCount, 0) disLikeCount
+		FROM ${target} r
+		JOIN member2 m ON r.member_id = m.member_id
+		LEFT OUTER JOIN (
+			SELECT parentNum, COUNT(*) answerCount
+			FROM ${target}
+			WHERE num = #{num} AND parentNum != 0 AND block = 0
+			<if test="userLevel lt 51">
+				AND ( showReply = 1 OR member_id = #{member_id} )
+			</if>	
+			GROUP BY parentNum
+		) a ON r.replyNum = a.parentNum
+		LEFT OUTER JOIN (
+			SELECT replyNum, COUNT(DECODE(replyLike, 1, 1)) likeCount,
+				   COUNT(DECODE(replyLike, 0, 1)) disLikeCount
+			FROM ${targetLike}
+			GROUP BY replyNum
+		) c ON r.replyNum = c.replyNum
+		WHERE num = #{num} AND r.parentNum = 0 AND r.block = 0
+		<if test="userLevel lt 51">
+			AND ( showReply = 1 OR r.member_id = #{member_id} )
+		</if>
+		ORDER BY r.replyNum DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	<delete id="deleteReply" parameterType="map">
+		DELETE FROM ${target}
+		WHERE replyNum = #{replyNum}
+		<if test="mode == 'reply'">
+			OR parentNum = #{replyNum}
+		</if>
+	</delete>
+	
+	<!-- 댓글의 답글 리스트 -->
+	<select id="listReplyAnswer" parameterType="map" resultType="com.sp.app.domain.dto.ReplyDto">
+		SELECT replyNum, num, r.member_id, name, content, reg_date, profile_photo,
+			parentNum, showReply
+		FROM ${target} r
+		JOIN member2 m ON r.member_id = m.member_id AND block = 0
+		WHERE parentNum = #{parentNum}
+		<if test="userLevel lt 51">
+			AND ( showReply = 1 OR r.member_id = #{member_id} )
+		</if>
+		ORDER BY replyNum DESC
+	</select>
+	
+	<!-- 댓글의 답글 개수 -->
+	<select id="replyAnswerCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM ${target}
+		WHERE parentNum = #{parentNum} AND block = 0
+		<if test="userLevel lt 51">
+			AND ( showReply = 1 OR member_id = #{member_id} )
+		</if>
+	</select>
+	
+	<!-- 좋아요/싫어요 추가 -->
+	<insert id="insertReplyLike" parameterType="map">
+		INSERT INTO ${targetLike}(replyNum, member_id, replyLike)
+		VALUES (#{replyNum}, #{member_id}, #{replyLike})
+	</insert>
+	
+	<!-- 좋아요/싫어요 개수 -->
+	<select id="replyLikeCount" parameterType="map" resultType="map">
+		SELECT COUNT(DECODE(replyLike, 1, 1)) likeCount,
+			   COUNT(DECODE(replyLike, 0, 1)) disLikeCount
+		FROM ${targetLike}
+		WHERE replyNum = #{replyNum}
+	</select>
+
+	<!-- 유저의 좋아요/싫어요 여부 -->	
+	<select id="hasUserReplyLiked" parameterType="map" resultType="Integer">
+		SELECT replyLike
+		FROM ${targetLike} 
+		WHERE replyNum = #{replyNum} AND member_id = #{member_id}
+	</select>
+	
+	<!-- 댓글 보이기/숨기기 -->
+	<update id="updateReplyShowHide" parameterType="map">
+		UPDATE ${target} SET showReply = #{showReply}
+		WHERE replyNum = #{replyNum} AND member_id = #{member_id}
+	</update>
+	
+</mapper>

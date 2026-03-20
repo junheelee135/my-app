@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/layout3}">
+
+<th:block layout:fragment="css">
+	<link rel="stylesheet" th:href="@{/dist/css/paginate.css}" type="text/css">
+	<link rel="stylesheet" th:href="@{/dist/css/board.css}" type="text/css">
+</th:block>
+
+<th:block layout:fragment="content">
+	<!-- Page Title -->
+	<div class="page-title">
+		<div class="container align-items-center" data-aos="fade-up">
+			<h1>자유 게시판</h1>
+			<div class="page-title-underline-accent"></div>
+		</div>
+	</div>
+    
+	<!-- Page Content -->    
+	<div class="section">
+		<div class="container" data-aos="fade-up" data-aos-delay="100">
+			<div class="row justify-content-center">
+				<div class="col-md-10 board-section my-4 p-5">
+
+					<div class="pb-2">
+						<span class="small-title">상세정보</span>
+					</div>
+									
+					<table class="table board-article">
+						<thead>
+							<tr>
+								<td colspan="2" class="text-center" th:text="${dto.subject}"></td>
+							</tr>
+						</thead>
+
+						<tbody>
+							<tr>
+								<td width="50%">
+									작성자 : [[${dto.name}]]
+								</td>
+								<td width="50%" class="text-end">
+									작성일 [[${#temporals.format(dto.reg_date, 'yyyy-MM-dd HH:mm:ss')}]] | 조회 [[${dto.hitCount}]]
+								</td>
+							</tr>
+							
+							<tr>
+								<td colspan="2" valign="top" class="article-content" height="200" style="border-bottom:none;">
+									[(${dto.content})]
+								</td>
+							</tr>
+
+							<tr>
+								<td colspan="2" class="text-center p-3" style="border-bottom: none;">
+									<button type="button" class="btn-default btnSendBoardLike" title="좋아요"><i class="bi" th:classappend="${isUserLiked} ? ' bi-heart-fill text-danger' : ' bi-heart'"></i>&nbsp;&nbsp;<span id="boardLikeCount">[[${dto.boardLikeCount}]]</span></button>
+								</td>
+							</tr>
+							
+							<tr>
+								<td colspan="2">
+									<th:block th:if="${dto.saveFilename != null}">
+										<p class="border text-secondary mb-1 p-2">
+											<i class="bi bi-folder2-open"></i>
+											<a th:href="@{/bbs/download/{num}(num=${dto.num})}" class="text-reset">[[${dto.originalFilename}]]</a>
+										</p>
+									</th:block>
+								</td>
+							</tr>
+
+							<tr>
+								<td colspan="2">
+									이전글 : 
+									<th:block th:if="${prevDto != null}">
+										<a th:href="|@{/bbs/article/{num}(num=${prevDto.num})}?${query}|">[[${prevDto.subject}]]</a>
+									</th:block>									
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									다음글 : 
+									<th:block th:if="${nextDto != null}">
+										<a th:href="|@{/bbs/article/{num}(num=${nextDto.num})}?${query}|">[[${nextDto.subject}]]</a>
+									</th:block>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+
+					<div class="row mb-2">
+						<div class="col-md-6 align-self-center">
+							<th:block th:if="${session.member.member_id==dto.member_id}">
+								<button type="button" class="btn-default" 
+									th:onclick="|location.href='@{/bbs/update/{num}(num=${dto.num}, page=${page})}'|">수정</button>
+							</th:block>
+							<th:block th:if="${session.member.member_id!=dto.member_id}">
+								<button type="button" class="btn-default btnPostsReport" th:data-num="${dto.num}">신고</button>
+							</th:block>
+							
+							<th:block th:if="${session.member.member_id==dto.member_id || session.member.userLevel>50}">
+								<button type="button" class="btn-default" onclick="deleteOk();">삭제</button>
+							</th:block>
+							<th:block th:unless="${session.member.member_id==dto.member_id || session.member.userLevel>50}">
+								<button type="button" class="btn-default" disabled>삭제</button>
+							</th:block>
+						</div>
+						<div class="col-md-6 align-self-center text-end">
+							<button type="button" class="btn-default"
+								th:data-url="|@{/bbs/list}?${query}|"
+								onclick="location.href=this.dataset.url">리스트</button>							
+						</div>
+					</div>
+
+					<div class="reply-session" th:data-num="${dto.num}" 
+							th:data-postsUrl="@{/posts/bbsReply}"
+							th:data-contextPath="@{/}">
+						<th:block th:replace="~{posts/replyContent :: replyContent}"></th:block>
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</div>
+</th:block>
+
+<th:block layout:fragment="script">
+	<th:block th:if="${session.member.member_id==dto.member_id || session.member.userLevel>50}">
+		<script type="text/javascript">
+			function deleteOk() {
+				if(confirm("게시글을 삭제 하시겠습니까 ?")) {
+					const url = '[[|@{/bbs/delete/{num}(num=${dto.num})}|]]?[[${query}]]';
+					location.href = url;
+				}
+			}
+		</script>
+	</th:block>
+	
+	<script type="text/javascript">
+	// 게시글 공감 여부
+	document.addEventListener('DOMContentLoaded', () => {
+		const btnEL =  document.querySelector('button.btnSendBoardLike');
+			
+		btnEL.addEventListener('click', function () {
+			const $i = this.querySelector('i');
+	        const userLiked = $i.classList.contains('bi-heart-fill');
+	        
+			const msg = userLiked ? '게시글 공감을 취소하시겠습니까 ? ' : '게시글에 공감하십니까 ?';
+			if(! confirm( msg )) {
+				return false;
+			}
+			
+			const fn = function(data) {
+				if(userLiked) {
+					$i.classList.remove('bi-heart-fill', 'text-danger');
+					$i.classList.add('bi-heart');
+				} else {
+					$i.classList.remove('bi-heart');
+					$i.classList.add('bi-heart-fill', 'text-danger');
+				}
+					
+				let count = data.boardLikeCount;
+				document.getElementById('boardLikeCount').textContent = count;
+			};
+			
+			const url = '[[@{/bbs/like/{num}(num=${dto.num})}]]';
+			const method = userLiked ? 'delete' : 'post';
+			// let params = null;
+			
+			const headers = {'AJAX': true};
+			const options = {
+				method: method,
+				headers: headers,
+			};
+		
+			fetch(url, options)
+				.then(res => {
+					if (!res.ok) {
+						if (res.status === 401) {
+							alert('인증이 필요합니다. 다시 로그인해주세요.'); return;
+						}
+						
+						throw new Error('HTTP error! status: ' + res.status);
+					}
+					
+					return res.json()
+				})
+				.then(data => fn(data))
+				.catch(err => console.log("error:", err));
+		});
+	});
+	</script>
+
+	<th:block th:replace="~{posts/report :: report}"></th:block>
+	
+	<script type="text/javascript">
+	document.addEventListener('DOMContentLoaded', function () {
+	    // 게시글 신고
+		const sectionEL = document.querySelector('.section');
+		if (sectionEL) {
+			sectionEL.addEventListener('click', function (e) {
+				const target = e.target.closest('.btnPostsReport');
+				if (! target) return;
+	
+				const num = target.getAttribute('data-num');
+				reports('bbs', num, 'posts', '자유 게시판');
+			});
+		}
+	
+	    // 댓글 / 답글 신고
+	    const replySessionEL = document.querySelector('.reply-session');
+	    if (replySessionEL) {
+			replySessionEL.addEventListener('click', function (e) {
+				// 댓글 신고
+				let target = e.target.closest('.notifyReply');
+				if (target) {
+					const replyNum = target.getAttribute('data-replyNum');
+					reports('bbsReply', replyNum, 'reply', '자유 게시판 댓글');
+					
+					return;
+				}
+	
+				// 답글 신고
+				target = e.target.closest('.notifyReplyAnswer');
+				if (target) {
+					const replyNum = target.getAttribute('data-replyNum');
+					reports(
+						'bbsReply',
+						replyNum,
+						'replyAnswer',
+						'자유 게시판 댓글에 대한 답글'
+					);
+				}
+			});
+		}
+	});
+	</script>
+	
+</th:block>
+
+</html>

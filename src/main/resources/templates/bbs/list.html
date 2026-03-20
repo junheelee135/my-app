@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/layout3}">
+
+<th:block layout:fragment="css">
+	<link rel="stylesheet" th:href="@{/dist/css/board.css}" type="text/css">
+	<link rel="stylesheet" th:href="@{/dist/css/paginate.css}" type="text/css">
+</th:block>
+
+<th:block layout:fragment="content">
+	<!-- Page Title -->
+	<div class="page-title">
+		<div class="container align-items-center" data-aos="fade-up">
+			<h1>자유 게시판</h1>
+			<div class="page-title-underline-accent"></div>
+		</div>
+	</div>
+    
+	<!-- Page Content -->    
+	<div class="section">
+		<div class="container" data-aos="fade-up" data-aos-delay="100">
+			<div class="row justify-content-center">
+				<div class="col-md-10 board-section my-4 p-5">
+				
+					<div class="row py-1 mb-2">
+						<div class="col-md-6 align-self-center">
+							<span class="small-title">글목록</span> <span class="dataCount"></span>
+						</div>	
+						<div class="col-md-6 align-self-center text-end">
+						</div>
+					</div>				
+				
+					<table class="table table-hover board-list">
+						<thead>
+							<tr>
+								<th class="num">번호</th>
+								<th class="subject">제목</th>
+								<th class="name">글쓴이</th>
+								<th class="date">작성일</th>
+								<th class="hit">조회수</th>
+								<th class="file">첨부</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr th:each="dto, status: ${list}">
+								<td th:text="${dataCount - (page-1) * size - status.index}"></td>
+								<td class="left">
+									<div class="text-wrap">
+										<a th:if="${#strings.isEmpty(kwd)}" th:href="@{/bbs/article/{num}(num=${dto.num}, page=${page})}" th:text="${dto.subject}"></a>
+										<a th:if="${not #strings.isEmpty(kwd)}" th:href="@{/bbs/article/{num}(num=${dto.num}, page=${page}, schType=${schType}, kwd=${kwd})}" th:text="${dto.subject}"></a>
+										<th:block th:if="${dto.replyCount!=0}"><span class="ms-1">([[${dto.replyCount}]])</span></th:block>
+									</div>
+								</td>
+								<td>[[${dto.name}]]</td>
+								<td>[[${#temporals.format(dto.reg_date, 'yyyy-MM-dd')}]]</td>
+								<td>[[${dto.hitCount}]]</td>
+								<td>
+									<a class="text-reset" th:if="${dto.saveFilename != null}" th:href="@{/bbs/download/{num}(num=${dto.num})}"><i class="bi bi-file-arrow-down"></i></a>
+								</td>								
+							</tr>
+						</tbody>					
+					</table>
+				
+					<div class="page-navigation"></div>
+
+					<div class="row mt-3">
+						<div class="col-md-3">
+							<button type="button" class="btn-default" th:onclick="|location.href='@{/bbs/list}'|" title="새로고침"><i class="bi bi-arrow-clockwise"></i></button>
+						</div>
+						<div class="col-md-6 text-center">
+							<form name="searchForm" class="form-search">
+								<select name="schType">
+									<option value="all" th:selected="${schType}=='all'">제목+내용</option>
+									<option value="name" th:selected="${schType}=='name'">글쓴이</option>
+									<option value="reg_date" th:selected="${schType}=='reg_date'">작성일</option>
+									<option value="subject" th:selected="${schType}=='subject'">제목</option>
+									<option value="content" th:selected="${schType}=='content'">내용</option>
+								</select>
+								<input type="text" name="kwd" th:value="${kwd}">
+								<button type="button" class="btn-default" onclick="searchList();"><i class="bi bi-search"></i></button>
+							</form>
+						</div>
+						<div class="col-md-3 text-end">
+							<button type="button" class="btn-accent btn-md" th:onclick="|location.href='@{/bbs/write}'|">글쓰기</button>
+						</div>
+					</div>
+				
+				</div>
+			</div>
+		</div>
+	</div>
+</th:block>
+
+<th:block layout:fragment="script">
+	<script type="text/javascript" th:src="@{/dist/posts/renderPaging.js}"></script>
+	
+	<script type="text/javascript">
+		document.addEventListener('DOMContentLoaded', function(){
+			let page = Number('[[${page}]]') || 0;
+			let pageSize = Number('[[${size}]]') || 0;
+			let dataCount = Number('[[${dataCount}]]') || 0;
+	
+			let url = '[[@{/bbs/list}]]';
+			let search = '[[${not #strings.isEmpty(kwd)}]]' === 'true';
+			if( search ) {
+				url = '[[@{/bbs/list(schType=${schType}, kwd=${kwd})}]]';
+			}
+		
+			let totalPage = getPageCount(dataCount, pageSize);
+			let paging = renderPaging(page, totalPage, url);
+		
+			document.querySelector('.dataCount').textContent = dataCount + '개 (' + page + '/' + totalPage + ' 페이지)';
+			document.querySelector('.page-navigation').innerHTML = dataCount === 0 ? '등록된 게시물이 없습니다.' : paging;
+		});
+	
+		document.addEventListener('DOMContentLoaded', () => {
+			const inputEL = document.querySelector('form input[name=kwd]'); 
+			inputEL.addEventListener('keydown', function (evt) {
+				if(evt.key === 'Enter') {
+					evt.preventDefault();
+					
+					searchList();
+				}
+			});
+		});
+
+		function searchList() {
+			const f = document.searchForm;
+			if(! f.kwd.value.trim()) {
+				return;
+			}
+			
+			const formData = new FormData(f);
+			let params = new URLSearchParams(formData).toString();
+			
+			let url = '[[@{/bbs/list}]]';
+			location.href = url + '?' + params;
+		}
+	</script>
+</th:block>
+
+</html>
